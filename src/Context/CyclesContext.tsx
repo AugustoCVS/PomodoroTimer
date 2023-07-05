@@ -1,28 +1,55 @@
-import { createContext, useState, useReducer } from 'react'
+import { createContext, useState, useReducer, useEffect } from 'react'
 
 import { CyclesContextType } from '../interfaces/CyclesContextType'
 import { Cycle } from '../interfaces/Cycle'
 import { CreateCycleData } from '../interfaces/CreateCycleData'
 import { CycleContextProviderProps } from '../interfaces/CyclesContextProviderProps'
-import { CyclesReducer } from '../reducers/cycles/CyclesReducer'
+import { cyclesReducer } from '../reducers/cycles/CyclesReducer'
 import {
   addNewCycleAction,
   interruptCurrentCycleAction,
   markCurrentCycleAsFinishedAction,
 } from '../reducers/cycles/actions'
+import { differenceInSeconds } from 'date-fns'
 
 export const CyclesContext = createContext({} as CyclesContextType)
 
 export function CyclesContextProvider({ children }: CycleContextProviderProps) {
-  const [cyclesState, dispatch] = useReducer(CyclesReducer, {
-    cycles: [],
-    activeCycleId: null,
-  })
+  const [cyclesState, dispatch] = useReducer(
+    cyclesReducer,
+    {
+      cycles: [],
+      activeCycleId: null,
+    },
+    (initialState) => {
+      const storageStateAsJson = localStorage.getItem(
+        '@ignite-timer:cycles-state-1.0.0',
+      )
 
-  const [amountSecondsPassed, setamountSecondsPassed] = useState(0)
+      if (storageStateAsJson) {
+        return JSON.parse(storageStateAsJson)
+      }
+
+      return initialState
+    },
+  )
 
   const { cycles, activeCycleId } = cyclesState
   const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
+
+  const [amountSecondsPassed, setamountSecondsPassed] = useState(() => {
+    if (activeCycle) {
+      return differenceInSeconds(new Date(), new Date(activeCycle.startDate))
+    }
+
+    return 0
+  })
+
+  useEffect(() => {
+    const stateJSON = JSON.stringify(cyclesState)
+
+    localStorage.setItem('@ignite-timer:cycles-state-1.0.0', stateJSON)
+  }, [cyclesState])
 
   function setSecondsPassed(seconds: number) {
     setamountSecondsPassed(seconds)
